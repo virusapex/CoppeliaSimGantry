@@ -95,8 +95,7 @@ class GantryEnv(gym.Env):
 
         # Compute the distance between the current position and the target position
         distance = np.linalg.norm(np.array([q]) - np.array(self.wanted_pixel))
-        print(self.wanted_pixel)
-        print(action)
+
         # Conditions for stopping the episode
         done = (q[0] <= self.x_min) or (q[0] >= self.x_max) \
             or (q[1] <= self.y_min) or (q[1] >= self.y_max)
