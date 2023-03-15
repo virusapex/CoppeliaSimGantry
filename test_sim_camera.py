@@ -8,7 +8,7 @@ client = RemoteAPIClient(port=23000)
 sim = client.getObject('sim')
 print('Connected to remote API server.')
 
-visionSensorHandle = sim.getObject('/kinect/rgb')
+visionSensorHandle = sim.getObject('/rgb')
 print('Connected to vision sensor.')
 
 # Load the Aruco dictionary
