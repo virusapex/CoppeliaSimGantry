@@ -12,7 +12,7 @@ class GantryEnv(gym.Env):
 
     def __init__(self, port):
         super(GantryEnv, self).__init__()
-        self.q_last = [0.0, 0.0]
+        self.q_last = [40.0, 40.0]
 
         self.x_max = 580
         self.x_min = 40
@@ -76,7 +76,7 @@ class GantryEnv(gym.Env):
         return [seed]
 
     def step(self, action):
-        q = [0.0, 0.0]
+        q = [40.0, 40.0]
         dt = 0.005  # time step in simulation seconds
 
         # Position of Gantry robot (X- and Y-axis)
@@ -97,8 +97,8 @@ class GantryEnv(gym.Env):
         distance = np.linalg.norm(np.array([q]) - np.array(self.wanted_pixel))
 
         # Conditions for stopping the episode
-        done = (q[0] <= self.x_min) or (q[0] >= self.x_max) \
-            or (q[1] <= self.y_min) or (q[1] >= self.y_max)
+        done = (q[0] < self.x_min) or (q[0] > self.x_max) \
+            or (q[1] < self.y_min) or (q[1] > self.y_max)
         done = bool(done)
 
         if distance < 1.0:
