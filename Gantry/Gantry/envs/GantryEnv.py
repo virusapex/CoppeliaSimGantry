@@ -110,10 +110,10 @@ class GantryEnv(gym.Env):
             reward = 100.0 / distance
 
         # Define the regularization parameter lambda
-        lambda_ = 0.003
+        # lambda_ = 0.003
 
         # Compute the L2 norm of the parameter vector theta
-        reg_term = lambda_ * (np.linalg.norm(self.v) ** 2)
+        reg_term = 0    # lambda_ * (np.linalg.norm(self.v) ** 2)
 
         if not done:
             # Normalizing distance values
