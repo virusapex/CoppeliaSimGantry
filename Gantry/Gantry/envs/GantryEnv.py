@@ -12,12 +12,12 @@ class GantryEnv(gym.Env):
 
     def __init__(self, port):
         super(GantryEnv, self).__init__()
-        self.q_last = [20.0, 450.0]
+        self.q_last = [0.0, 0.0]
 
-        self.x_max = 600
-        self.x_min = 20
-        self.y_max = 450
-        self.y_min = 50
+        self.x_max = 630
+        self.x_min = 0
+        self.y_max = 470
+        self.y_min = 0
 
         high = np.array(
             [
@@ -76,7 +76,7 @@ class GantryEnv(gym.Env):
         return [seed]
 
     def step(self, action):
-        q = [20.0, 450.0]
+        q = [0.0, 0.0]
         dt = 0.020  # time step in simulation seconds
 
         # Position of Gantry robot (X- and Y-axis)
@@ -86,6 +86,7 @@ class GantryEnv(gym.Env):
         self.position_history.append(q)
         if len(self.position_history) > 5:  # if history has more than 5 positions (25ms delay)
             q = self.position_history.pop(0)  # remove oldest position and set it as current position
+            # TODO add check if Aruco is not detected
             self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
                       (q[1] - self.q_last[1])/(dt*1000)]
             self.q_last = q
@@ -101,15 +102,15 @@ class GantryEnv(gym.Env):
             or (q[1] < self.y_min) or (q[1] > self.y_max)
         done = bool(done)
 
-        if distance < 1.0:
+        if distance < 5.0:
             # Maximum reward if the robot is within 1.0 units of the target position
             reward = 100.0
         else:
             # Reward is inversely proportional to the distance from the target position
-            reward = 1.0 / distance
+            reward = 100.0 / distance
 
         # Define the regularization parameter lambda
-        lambda_ = 0.01
+        lambda_ = 0.003
 
         # Compute the L2 norm of the parameter vector theta
         reg_term = lambda_ * (np.linalg.norm(self.v) ** 2)
@@ -186,7 +187,7 @@ if __name__ == "__main__":
     env = GantryEnv(23000)
     env.reset()
 
-    for _ in range(100):
+    for _ in range(500):
         action = env.action_space.sample()  # random action
         env.step(action)
         # print(env.state)
