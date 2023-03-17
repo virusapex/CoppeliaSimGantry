@@ -78,10 +78,13 @@ class GantryEnv(gym.Env):
     def step(self, action):
         q = [0.0, 0.0]
         dt = 0.020  # time step in simulation seconds
+        marker = 1
 
         # Position of Gantry robot (X- and Y-axis)
         q[0], q[1] = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
+        if q[0] == 0.0:
+            marker = 0  # marker was not found
 
         self.position_history.append(q)
         if len(self.position_history) > 5:  # if history has more than 5 positions (25ms delay)
@@ -105,9 +108,13 @@ class GantryEnv(gym.Env):
         if distance < 5.0:
             # Maximum reward if the robot is within 1.0 units of the target position
             reward = 100.0
-        else:
+            done = 1
+        elif marker:
             # Reward is inversely proportional to the distance from the target position
             reward = 100.0 / distance
+        else:
+            # Marker is not in camera view, punish the system
+            reward = -10
 
         # Define the regularization parameter lambda
         # lambda_ = 0.003
