@@ -83,8 +83,6 @@ class GantryEnv(gym.Env):
         # Position of Gantry robot (X- and Y-axis)
         q[0], q[1] = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
-        if q[0] == 0.0:
-            marker = 0  # marker was not found
 
         self.position_history.append(q)
         if len(self.position_history) > 5:  # if history has more than 5 positions (25ms delay)
@@ -93,6 +91,8 @@ class GantryEnv(gym.Env):
             self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
                       (q[1] - self.q_last[1])/(dt*1000)]
             self.q_last = q
+            if q[0] == 0.0:
+                marker = 0  # marker was not found
 
         # Set action
         self.gantry_sim_model.setGantryPosition(self.sim, action)
@@ -105,10 +105,9 @@ class GantryEnv(gym.Env):
             or (q[1] < self.y_min) or (q[1] > self.y_max)
         done = bool(done)
 
-        if distance < 5.0:
+        if distance < 3.0:
             # Maximum reward if the robot is within 1.0 units of the target position
             reward = 100.0
-            done = 1
         elif marker:
             # Reward is inversely proportional to the distance from the target position
             reward = 100.0 / distance
