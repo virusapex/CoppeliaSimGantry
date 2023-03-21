@@ -102,7 +102,7 @@ class GantrySimModel():
                 # Return the center position
                 return center
 
-        return [0.0, 0.0]
+        return [0.0, 470.0]
 
     def getJointPosition(self, sim, joint_name):
         q = 0

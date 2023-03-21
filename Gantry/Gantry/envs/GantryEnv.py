@@ -12,7 +12,7 @@ class GantryEnv(gym.Env):
 
     def __init__(self, port):
         super(GantryEnv, self).__init__()
-        self.q_last = [0.0, 0.0]
+        self.q_last = [0.0, 470.0]
 
         self.x_max = 630
         self.x_min = 0
@@ -67,6 +67,7 @@ class GantryEnv(gym.Env):
         self.wanted_pixel = [350, 250]
         self.position_history = []  # empty list to store previous positions
         self.v = [0.0, 0.0]
+        self.min_distance = 760
 
         self.gantry_sim_model = GantrySimModel()
         self.gantry_sim_model.initializeSimModel(self.sim)
@@ -76,16 +77,19 @@ class GantryEnv(gym.Env):
         return [seed]
 
     def step(self, action):
-        q = [0.0, 0.0]
-        dt = 0.020  # time step in simulation seconds
+        q = [0.0, 470.0]
+        dt = 0.0333  # time step in simulation seconds
         marker = 1
 
         # Position of Gantry robot (X- and Y-axis)
         q[0], q[1] = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
 
+        distance_last = np.linalg.norm(np.array([self.q_last]) - np.array(self.wanted_pixel))
+
         self.position_history.append(q)
-        if len(self.position_history) > 5:  # if history has more than 5 positions (25ms delay)
+        # TODO change delay buffer size
+        if len(self.position_history) > 2:  # if history has more than 5 positions (25ms delay)
             q = self.position_history.pop(0)  # remove oldest position and set it as current position
             # TODO add check if Aruco is not detected
             self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
@@ -99,21 +103,27 @@ class GantryEnv(gym.Env):
 
         # Compute the distance between the current position and the target position
         distance = np.linalg.norm(np.array([q]) - np.array(self.wanted_pixel))
+        distance_decreasing = bool(self.min_distance - distance > 0)
+        if distance < self.min_distance: self.min_distance = distance
 
         # Conditions for stopping the episode
         done = (q[0] < self.x_min) or (q[0] > self.x_max) \
             or (q[1] < self.y_min) or (q[1] > self.y_max)
         done = bool(done)
 
-        if distance < 3.0:
-            # Maximum reward if the robot is within 1.0 units of the target position
-            reward = 100.0
-        elif marker:
-            # Reward is inversely proportional to the distance from the target position
-            reward = 100.0 / distance
+        if distance_decreasing:
+            if distance < 50.0:
+                # Maximum reward if the robot is within 1.0 units of the target position
+                reward = 10.0
+            elif marker:
+                # Reward is inversely proportional to the distance from the target position
+                reward = 1 - (distance/786)**0.5
+            else:
+                # Marker is not in camera view, punish the system
+                print("bruh")
+                reward = -1
         else:
-            # Marker is not in camera view, punish the system
-            reward = -10
+            reward = -0.5
 
         # Define the regularization parameter lambda
         # lambda_ = 0.003
@@ -124,6 +134,7 @@ class GantryEnv(gym.Env):
         if not done:
             # Normalizing distance values
             reward -= reg_term
+            print(reward)
         elif self.steps_beyond_done is None:
             # Out of bounds
             self.steps_beyond_done = 0
@@ -160,8 +171,8 @@ class GantryEnv(gym.Env):
         k3 = 0.0
         self.dist_coeffs = np.array([k1, k2, p1, p2, k3])
 
-        self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
-                             np.random.randint(self.y_min, self.y_max)]
+        #self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
+        #                     np.random.randint(self.y_min, self.y_max)]
 
         self.sim.stopSimulation()
         while self.sim.getSimulationState() != self.sim.simulation_stopped:
