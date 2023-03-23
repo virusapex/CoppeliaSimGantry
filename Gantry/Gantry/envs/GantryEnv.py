@@ -19,32 +19,32 @@ class GantryEnv(gym.Env):
         self.y_max = 470
         self.y_min = 0
 
-        high = np.array(
-            [
-                self.x_max,
-                np.finfo(np.float32).max,
-                self.y_max,
-                np.finfo(np.float32).max,
-                self.x_max,
-                self.y_max
-            ],
-            dtype=np.float32,
-        )
-        low = np.array(
-            [
-                self.x_min,
-                np.finfo(np.float32).min,
-                self.y_min,
-                np.finfo(np.float32).min,
-                self.x_min,
-                self.y_min
-            ],
-            dtype=np.float32,
-        )
+        # high = np.array(
+        #     [
+        #         self.x_max,
+        #         np.finfo(np.float32).max,
+        #         self.y_max,
+        #         np.finfo(np.float32).max,
+        #         self.x_max,
+        #         self.y_max
+        #     ],
+        #     dtype=np.float32,
+        # )
+        # low = np.array(
+        #     [
+        #         self.x_min,
+        #         np.finfo(np.float32).min,
+        #         self.y_min,
+        #         np.finfo(np.float32).min,
+        #         self.x_min,
+        #         self.y_min
+        #     ],
+        #     dtype=np.float32,
+        # )
 
         # Don't forget to normalize when training
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(6,),dtype=np.float32)
 
         self.seed()
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(6,))
@@ -120,7 +120,7 @@ class GantryEnv(gym.Env):
         if distance_decreasing:
             if distance < 20.0:
                 # Maximum reward if the robot is within 1.0 units of the target position
-                reward = 100.0
+                reward = 250.0
                 done = True
             elif marker:
                 # Reward is inversely proportional to the distance from the target position
@@ -128,10 +128,10 @@ class GantryEnv(gym.Env):
             else:
                 # Marker is not in camera view, punish the system
                 print("bruh")
-                reward = -1
+                reward = 0
         else:
             # Reward for going back from the wanted position
-            reward = -0.5
+            reward = 1 - (distance/786)**0.5
 
         # Define the regularization parameter lambda
         # lambda_ = 0.003
