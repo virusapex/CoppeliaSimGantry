@@ -106,8 +106,10 @@ class GantryEnv(gym.Env):
                           (q[1] - self.q_last[1])/(dt*1000)]
 
         # Set action
-        action = (action + 1)/3.34  # from [-1,1] to [0,0.6]
-        self.gantry_sim_model.setGantryPosition(self.sim, action)
+        # action = (action + 1)/3.34  # from [-1,1] to [0,0.6]
+        # self.gantry_sim_model.setGantryPosition(self.sim, action)
+        action /= 2  # from [-1,1] to [-0.5,0.5]
+        self.gantry_sim_model.setGantryVelocity(self.sim, action)
 
         # Compute the distance between the current position and the target position
         distance = np.linalg.norm(np.array(q) - np.array(self.wanted_pixel))
@@ -144,10 +146,10 @@ class GantryEnv(gym.Env):
             self.reset()
 
         # Define the regularization parameter lambda
-        # lambda_ = 0.003
+        lambda_ = 0.1
 
         # Compute the L2 norm of the parameter vector theta
-        reg_term = 0    # lambda_ * (np.linalg.norm(self.v) ** 2)
+        reg_term = lambda_ * (np.linalg.norm(action) ** 2)
 
         if not done:
             # Normalizing distance values
@@ -206,7 +208,8 @@ class GantryEnv(gym.Env):
 
         self.client.setStepping(True)
         self.sim.startSimulation()
-        self.gantry_sim_model.setGantryPosition(self.sim, [0, 0])
+        # self.gantry_sim_model.setGantryPosition(self.sim, [0, 0])
+        self.gantry_sim_model.setGantryVelocity(self.sim, [0, 0])
         self.gantry_sim_model.resetGantryPosition(self.sim)
 
         return np.array(self.state, dtype=np.float32)
@@ -226,7 +229,7 @@ if __name__ == "__main__":
 
     for _ in range(500):
         action = env.action_space.sample()  # random action
-        env.step(np.array([0.55,0.4]))
+        env.step(action)
         # print(env.state)
 
     env.close()
