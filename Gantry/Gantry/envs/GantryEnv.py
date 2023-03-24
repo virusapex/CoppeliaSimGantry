@@ -89,17 +89,19 @@ class GantryEnv(gym.Env):
         q[0], q[1] = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
 
-        distance_last = np.linalg.norm(np.array(self.q_last) - np.array(self.wanted_pixel))
-
-        self.position_history.append(q)
-        # TODO change delay buffer size
-        if len(self.position_history) > 1:  # if history has more than 5 positions (25ms delay)
-            q = self.position_history.pop(0)  # remove oldest position and set it as current position
-            self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
-                      (q[1] - self.q_last[1])/(dt*1000)]
-            self.q_last = q
-            if q[0] == 0.0:
-                marker = 0  # marker was not found
+        # distance_last = np.linalg.norm(np.array(self.q_last) - np.array(self.wanted_pixel))
+        
+        if q[0] == 0.0:
+            marker = 0
+            q = self.q_last  # marker was not found
+        else:
+            self.position_history.append(q)
+            # TODO change delay buffer size
+            if len(self.position_history) > 1:  # if history has more than 5 positions (25ms delay)
+                q = self.position_history.pop(0)  # remove oldest position and set it as current position
+                self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
+                          (q[1] - self.q_last[1])/(dt*1000)]
+                self.q_last = q
 
         # Set action
         action = (action + 1)/3.34  # from [-1,1] to [0,0.6]
@@ -117,21 +119,19 @@ class GantryEnv(gym.Env):
             or (q[1] < self.y_min) or (q[1] > self.y_max)
         done = bool(done)
 
-        if distance_decreasing:
-            if distance < 20.0:
-                # Maximum reward if the robot is within 1.0 units of the target position
-                reward = 250.0
-                done = True
-            elif marker:
-                # Reward is inversely proportional to the distance from the target position
-                reward = 1 - (distance/786)**0.5
-            else:
-                # Marker is not in camera view, punish the system
-                print("bruh")
-                reward = 0
-        else:
-            # Reward for going back from the wanted position
+        # if distance_decreasing:
+        if distance < 20.0:
+            # Maximum reward if the robot is within 20 pixels of the target position
+            reward = 10.0
+            self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
+                                 np.random.randint(self.y_min, self.y_max)]
+            self.counts = 0
+        elif self.counts <= 100:
+            # reward = -distance
             reward = 1 - (distance/786)**0.5
+        else:
+            reward = 1 - (distance/786)**0.5
+            done = True
 
         # Define the regularization parameter lambda
         # lambda_ = 0.003
