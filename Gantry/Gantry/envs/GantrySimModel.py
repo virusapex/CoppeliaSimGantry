@@ -102,7 +102,7 @@ class GantrySimModel():
                 # Return the center position
                 return center
 
-        return [0.0, 470.0]
+        return [0, 470]
 
     def getJointPosition(self, sim, joint_name):
         q = 0
@@ -118,6 +118,10 @@ class GantrySimModel():
     def setGantryPosition(self, sim, action):
         sim.setJointTargetPosition(self.gantryJoints[0], float(action[0]))
         sim.setJointTargetPosition(self.gantryJoints[1], float(action[1]))
+
+    def resetGantryPosition(self, sim):
+        sim.setJointPosition(self.gantryJoints[0], np.random.uniform(low=0.0, high=0.6))
+        sim.setJointPosition(self.gantryJoints[0], np.random.uniform(low=0.0, high=0.45))
 
     # TODO Add floor texture randomization
     def addRandomTexture(self, sim, texture_list):

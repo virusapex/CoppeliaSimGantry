@@ -1,53 +1,53 @@
+import time
 import numpy as np
 import gym
 from gym.utils import seeding
 from gym import spaces, logger
-import time
 from zmqRemoteApi import RemoteAPIClient
 from Gantry.envs.GantrySimModel import GantrySimModel
 
 
 class GantryEnv(gym.Env):
+    """
+        Observations consist of
+
+        - The coordinates of the Aruco marker
+        - The velocities of the moving platforms
+        - The cosine between vectors of current movement and vector leading to wanted target (similarity)
+
+        The observation is a `ndarray` with shape `(7,)` where the elements correspond to the following:
+        
+        | Num | Observation                                    | Min  | Max | Unit                  |
+        | --- | ---------------------------------------------- | ---- | --- | --------------------- |
+        | 0   | x-coordinate of the marker                     | -Inf | Inf | position (pixel)      |
+        | 1   | y-coordinate of the marker                     | -Inf | Inf | position (pixel)      |
+        | 2   | velocity of the x-platform                     | -Inf | Inf | velocity (pixel/step) |
+        | 3   | velocity of the y-platform                     | -Inf | Inf | velocity (pixel/step) |
+        | 4   | x-value of position_marker - position_target   | -Inf | Inf | position (m)          |
+        | 5   | y-value of position_marker - position_target   | -Inf | Inf | position (m)          |
+        | 6   | similarity value                               | -Inf | Inf | unitless              |
+    """
+
     metadata = {'render.modes': ['human']}
 
     def __init__(self, port):
         super(GantryEnv, self).__init__()
-        self.q_last = [0.0, 470.0]
+        self.q_last = [0, 470]
 
         self.x_max = 630
         self.x_min = 0
         self.y_max = 470
         self.y_min = 0
 
-        # high = np.array(
-        #     [
-        #         self.x_max,
-        #         np.finfo(np.float32).max,
-        #         self.y_max,
-        #         np.finfo(np.float32).max,
-        #         self.x_max,
-        #         self.y_max
-        #     ],
-        #     dtype=np.float32,
-        # )
-        # low = np.array(
-        #     [
-        #         self.x_min,
-        #         np.finfo(np.float32).min,
-        #         self.y_min,
-        #         np.finfo(np.float32).min,
-        #         self.x_min,
-        #         self.y_min
-        #     ],
-        #     dtype=np.float32,
-        # )
-
         # Don't forget to normalize when training
-        self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(6,),dtype=np.float32)
+        self.action_space = spaces.Box(low=-1, high=1,
+                                       shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
+                                            shape=(7,), dtype=np.float64)
 
         self.seed()
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(6,))
+
+        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(7,))
         self.counts = 0
         self.steps_beyond_done = None
 
@@ -58,7 +58,8 @@ class GantryEnv(gym.Env):
         # When simulation is not running, ZMQ message handling could be a bit
         # slow, since the idle loop runs at 8 Hz by default. So let's make
         # sure that the idle loop runs at full speed for this program:
-        self.defaultIdleFps = self.sim.getInt32Param(self.sim.intparam_idle_fps)
+        self.defaultIdleFps = self.sim.getInt32Param(
+            self.sim.intparam_idle_fps)
         self.sim.setInt32Param(self.sim.intparam_idle_fps, 0)
         self.client.setStepping(True)
         self.sim.startSimulation()
@@ -81,27 +82,28 @@ class GantryEnv(gym.Env):
         return [seed]
 
     def step(self, action):
-        q = [0.0, 470.0]
         dt = 0.0333  # time step in simulation seconds
         marker = 1
 
         # Position of Gantry robot (X- and Y-axis)
-        q[0], q[1] = self.gantry_sim_model.getGantryPixelPosition(
+        q = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
 
-        # distance_last = np.linalg.norm(np.array(self.q_last) - np.array(self.wanted_pixel))
-        
         if q[0] == 0.0:
             marker = 0
             q = self.q_last  # marker was not found
+            if len(self.position_history) > 1:  # if history exists
+                self.q_last = self.position_history[0]
+            else:
+                self.q_last = [0, 470]
         else:
             self.position_history.append(q)
             # TODO change delay buffer size
-            if len(self.position_history) > 1:  # if history has more than 5 positions (25ms delay)
-                q = self.position_history.pop(0)  # remove oldest position and set it as current position
+            if len(self.position_history) > 1:  # if history has more than 1 position (33ms delay)
+                # remove oldest position and set it as current position
+                q = self.position_history.pop(0)
                 self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
                           (q[1] - self.q_last[1])/(dt*1000)]
-                self.q_last = q
 
         # Set action
         action = (action + 1)/3.34  # from [-1,1] to [0,0.6]
@@ -109,15 +111,22 @@ class GantryEnv(gym.Env):
 
         # Compute the distance between the current position and the target position
         distance = np.linalg.norm(np.array(q) - np.array(self.wanted_pixel))
-        distance_xy = abs(np.array(q) - np.array(self.wanted_pixel))
-        distance_decreasing = bool(self.min_distance - distance > 0)
+        distance_last = np.linalg.norm(
+            np.array(self.q_last) - np.array(q))
+        vector_xy = np.array(self.wanted_pixel) - np.array(q)
+        vector_last_xy = np.array(q) - np.array(self.q_last)
+        cosine_sim = np.dot(vector_xy,vector_last_xy)/np.dot(distance,distance_last)
+        if np.isnan(cosine_sim):
+            cosine_sim = 0
+
         if distance < self.min_distance:
             self.min_distance = distance
 
         # Conditions for stopping the episode
-        done = (q[0] < self.x_min) or (q[0] > self.x_max) \
-            or (q[1] < self.y_min) or (q[1] > self.y_max)
-        done = bool(done)
+        # done = (q[0] < self.x_min) or (q[0] > self.x_max) \
+        #     or (q[1] < self.y_min) or (q[1] > self.y_max)
+        # done = bool(done)
+        done = False
 
         # if distance_decreasing:
         if distance < 20.0:
@@ -128,10 +137,11 @@ class GantryEnv(gym.Env):
             self.counts = 0
         elif self.counts <= 100:
             # reward = -distance
-            reward = 1 - (distance/786)**0.5
+            reward = 1 - (distance**2/617796)
         else:
-            reward = 1 - (distance/786)**0.5
+            reward = 1 - (distance**2/617796)
             done = True
+            self.reset()
 
         # Define the regularization parameter lambda
         # lambda_ = 0.003
@@ -157,10 +167,10 @@ class GantryEnv(gym.Env):
             self.steps_beyond_done += 1
             reward = 0.0
 
-        self.state = (q[0], self.v[0],
-                      q[1], self.v[1],
-                      distance_xy[0], distance_xy[1])
+        self.state = (q[0], self.v[0], q[1], self.v[1],
+                      vector_xy[0], vector_xy[1], cosine_sim)
         self.counts += 1
+        self.q_last = q
 
         self.client.step()
 
@@ -169,7 +179,7 @@ class GantryEnv(gym.Env):
     def reset(self):
         self.counts = 0
         self.push_force = 0
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(6,))
+        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(7,))
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
@@ -197,6 +207,7 @@ class GantryEnv(gym.Env):
         self.client.setStepping(True)
         self.sim.startSimulation()
         self.gantry_sim_model.setGantryPosition(self.sim, [0, 0])
+        self.gantry_sim_model.resetGantryPosition(self.sim)
 
         return np.array(self.state, dtype=np.float32)
 
@@ -215,7 +226,7 @@ if __name__ == "__main__":
 
     for _ in range(500):
         action = env.action_space.sample()  # random action
-        env.step(action)
+        env.step(np.array([0.55,0.4]))
         # print(env.state)
 
     env.close()
