@@ -4,4 +4,3 @@ wandb/
 __pycache__/
 *.egg-info/
 *.vscode/
-*zmqRemoteApi/
