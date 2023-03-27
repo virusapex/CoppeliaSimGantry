@@ -137,7 +137,7 @@ class GantryEnv(gym.Env):
             self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
                                  np.random.randint(self.y_min, self.y_max)]
             self.counts = 0
-        elif self.counts <= 100:
+        elif self.counts <= 200:
             # reward = -distance
             reward = 1 - (distance**2/617796)
         else:
@@ -208,8 +208,8 @@ class GantryEnv(gym.Env):
 
         self.client.setStepping(True)
         self.sim.startSimulation()
-        # self.gantry_sim_model.setGantryPosition(self.sim, [0, 0])
-        self.gantry_sim_model.setGantryVelocity(self.sim, [0, 0])
+        # self.gantry_sim_model.setGantryPosition(self.sim, [0.0, 0.0])
+        self.gantry_sim_model.setGantryVelocity(self.sim, [0.0, 0.0])
         self.gantry_sim_model.resetGantryPosition(self.sim)
 
         return np.array(self.state, dtype=np.float32)

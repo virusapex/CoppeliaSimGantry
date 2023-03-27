@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from sb3_contrib import RecurrentPPO
+from sb3_contrib import RecurrentPPO, ARS
 
 from Gantry.envs.GantryEnv import GantryEnv
 
@@ -30,6 +30,8 @@ if args.algo == "ppo":
     model = PPO.load(args.trained_agent, env=env)
 elif args.algo == "ppo_lstm":
     model = RecurrentPPO.load(args.trained_agent, env=env)
+elif args.algo == "ars":
+    model = ARS.load(args.trained_agent, env=env)
 
 # ---------------- Prediction
 print('Prediction')
