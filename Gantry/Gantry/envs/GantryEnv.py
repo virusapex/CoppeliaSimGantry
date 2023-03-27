@@ -131,19 +131,26 @@ class GantryEnv(gym.Env):
         done = False
 
         # if distance_decreasing:
-        if distance < 20.0:
-            # Maximum reward if the robot is within 20 pixels of the target position
-            reward = 10.0
-            self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
-                                 np.random.randint(self.y_min, self.y_max)]
-            self.counts = 0
-        elif self.counts <= 200:
-            # reward = -distance
-            reward = 1 - (distance**2/617796)
+        if not marker:
+            reward = 0
+            cosine_sim = 0
+            vector_xy = np.array([500,500])
+            self.v = np.array([0.0,0.0])
+
         else:
-            reward = 1 - (distance**2/617796)
-            done = True
-            self.reset()
+            if distance < 20.0:
+                # Maximum reward if the robot is within 20 pixels of the target position
+                reward = 10.0
+                self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
+                                    np.random.randint(self.y_min, self.y_max)]
+                self.counts = 0
+            elif self.counts <= 200:
+                # reward = -distance
+                reward = 1 - (distance**2/617796)
+            else:
+                reward = 1 - (distance**2/617796)
+                done = True
+                self.reset()
 
         # Define the regularization parameter lambda
         lambda_ = 0.1
