@@ -127,6 +127,13 @@ class GantrySimModel():
         sim.setJointPosition(self.gantryJoints[0], np.random.uniform(low=0.0, high=0.6))
         sim.setJointPosition(self.gantryJoints[1], np.random.uniform(low=0.0, high=0.45))
 
+    def resetCameraOrientation(self, sim, visionSensorHandle):
+        sim.setObjectOrientation(visionSensorHandle, -1,
+            [np.random.uniform(low=3.09, high=3.19),
+             np.random.uniform(low=-0.05, high=0.05),
+             np.random.uniform(low=3.09, high=3.19)]
+        )
+
     # TODO Add floor texture randomization
     def addRandomTexture(self, sim, texture_list):
         sim.setShapeTexture(self.floor_handle, random.choice(texture_list))

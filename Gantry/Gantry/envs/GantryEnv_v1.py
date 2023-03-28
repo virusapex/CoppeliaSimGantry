@@ -98,6 +98,7 @@ class GantryEnv(gym.Env):
                 self.q_last = [0, 470]
         else:
             self.position_history.append(q)
+            # TODO change delay buffer size
             if len(self.position_history) > 1:  # if history has more than 1 position (33ms delay)
                 # remove oldest position and set it as current position
                 q = self.position_history.pop(0)
@@ -105,6 +106,8 @@ class GantryEnv(gym.Env):
                           (q[1] - self.q_last[1])/(dt*1000)]
 
         # Set action
+        # action = (action + 1)/3.34  # from [-1,1] to [0,0.6]
+        # self.gantry_sim_model.setGantryPosition(self.sim, action)
         action /= 2  # from [-1,1] to [-0.5,0.5]
         self.gantry_sim_model.setGantryVelocity(self.sim, action)
 
@@ -121,6 +124,10 @@ class GantryEnv(gym.Env):
         if distance < self.min_distance:
             self.min_distance = distance
 
+        # Conditions for stopping the episode
+        # done = (q[0] < self.x_min) or (q[0] > self.x_max) \
+        #     or (q[1] < self.y_min) or (q[1] > self.y_max)
+        # done = bool(done)
         done = False
 
         # if distance_decreasing:
@@ -136,7 +143,21 @@ class GantryEnv(gym.Env):
             if distance < 20.0:
                 # Maximum reward if the robot is within 20 pixels of the target position
                 reward = 10.0
-
+            '''
+            if distance < 20.0:
+                # Maximum reward if the robot is within 20 pixels of the target position
+                reward = 10.0
+                self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
+                                    np.random.randint(self.y_min, self.y_max)]
+                self.counts = 0
+            elif self.counts <= 200:
+                # reward = -distance
+                reward = 1 - (distance**2/617796)
+            else:
+                reward = 1 - (distance**2/617796)
+                done = True
+                self.reset()
+            '''
         # Define the regularization parameter lambda
         lambda_ = 0.1
 
@@ -176,10 +197,10 @@ class GantryEnv(gym.Env):
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
-        k1 = 0.0
-        k2 = 0.0
-        p1 = 0.0
-        p2 = 0.0
+        k1 = np.random.uniform(-0.3, -0.2)
+        k2 = np.random.uniform(0.1, 0.2)
+        p1 = np.random.uniform(-0.01, -0.005)
+        p2 = np.random.uniform(-0.01, -0.005)
         k3 = 0.0
         self.dist_coeffs = np.array([k1, k2, p1, p2, k3])
 
@@ -199,8 +220,10 @@ class GantryEnv(gym.Env):
 
         self.client.setStepping(True)
         self.sim.startSimulation()
+        # self.gantry_sim_model.setGantryPosition(self.sim, [0.0, 0.0])
         self.gantry_sim_model.setGantryVelocity(self.sim, [0.0, 0.0])
         self.gantry_sim_model.resetGantryPosition(self.sim)
+        self.gantry_sim_model.resetCameraOrientation(self.sim, self.visionSensorHandle)
 
         return np.array(self.state, dtype=np.float32)
 
@@ -220,5 +243,6 @@ if __name__ == "__main__":
     for _ in range(500):
         action = env.action_space.sample()  # random action
         env.step(action)
+        # print(env.state)
 
     env.close()
