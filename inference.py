@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 
 if args.env == "Gantry-v0":
-    env = DummyVecEnv([lambda: GantryEnv(23000)])
+    env = DummyVecEnv([lambda: GantryEnv(23004)])
     if args.norm:
         env = VecNormalize.load(args.norm, env)
     env.training = False

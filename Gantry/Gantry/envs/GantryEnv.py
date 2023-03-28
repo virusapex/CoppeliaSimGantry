@@ -125,13 +125,13 @@ class GantryEnv(gym.Env):
 
         # if distance_decreasing:
         if not marker:
-            reward = 0
+            reward = -100
             cosine_sim = 0
             vector_xy = np.array([500,500])
             self.v = np.array([0.0,0.0])
 
         else:
-            reward = 1 - (distance**2/617796)
+            reward = -distance/10
             self.q_last = q
             if distance < 20.0:
                 # Maximum reward if the robot is within 20 pixels of the target position
