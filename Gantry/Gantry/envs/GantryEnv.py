@@ -138,6 +138,9 @@ class GantryEnv(gym.Env):
             self.v = np.array([0.0,0.0])
 
         else:
+            reward = 1 - (distance**2/617796)
+            self.q_last = q
+            '''
             if distance < 20.0:
                 # Maximum reward if the robot is within 20 pixels of the target position
                 reward = 10.0
@@ -151,7 +154,7 @@ class GantryEnv(gym.Env):
                 reward = 1 - (distance**2/617796)
                 done = True
                 self.reset()
-
+            '''
         # Define the regularization parameter lambda
         lambda_ = 0.1
 
@@ -179,7 +182,6 @@ class GantryEnv(gym.Env):
         self.state = (q[0], self.v[0], q[1], self.v[1],
                       vector_xy[0], vector_xy[1], cosine_sim)
         self.counts += 1
-        self.q_last = q
 
         self.client.step()
 
