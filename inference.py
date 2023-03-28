@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from sb3_contrib import RecurrentPPO, ARS
 
@@ -13,7 +13,7 @@ parser.add_argument("--algo", help="RL Algorithm",
 parser.add_argument("-i", "--trained-agent", help="Path to a trained agent",
                     default="best_model", type=str)
 parser.add_argument("--norm", type=str,
-                    default="vecnormalize.pkl", help="Path to a VecNormalize statistics")
+                    default="", help="Path to a VecNormalize statistics")
 parser.add_argument("--env", type=str,
                     default="Gantry-v0", help="Environment ID")
 
@@ -22,7 +22,8 @@ args = parser.parse_args()
 
 if args.env == "Gantry-v0":
     env = DummyVecEnv([lambda: GantryEnv(23000)])
-    env = VecNormalize.load(args.norm, env)
+    if args.norm:
+        env = VecNormalize.load(args.norm, env)
     env.training = False
     env.norm_reward = False
 
@@ -32,6 +33,8 @@ elif args.algo == "ppo_lstm":
     model = RecurrentPPO.load(args.trained_agent, env=env)
 elif args.algo == "ars":
     model = ARS.load(args.trained_agent, env=env)
+elif args.algo == "sac":
+    model = SAC.load(args.trained_agent, env=env)
 
 # ---------------- Prediction
 print('Prediction')
