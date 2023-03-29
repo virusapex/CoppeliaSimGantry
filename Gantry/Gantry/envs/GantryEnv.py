@@ -133,12 +133,12 @@ class GantryEnv(gym.Env):
         else:
             reward = -distance/10
             self.q_last = q
-            if distance < 20.0:
+            if distance < 15.0:
                 # Maximum reward if the robot is within 20 pixels of the target position
                 reward = 10.0
 
         # Define the regularization parameter lambda
-        lambda_ = 0.1
+        lambda_ = 5
 
         # Compute the L2 norm of the parameter vector theta
         reg_term = lambda_ * (np.linalg.norm(action) ** 2)
