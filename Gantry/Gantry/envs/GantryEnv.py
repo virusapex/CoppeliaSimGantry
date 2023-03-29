@@ -181,9 +181,10 @@ class GantryEnv(gym.Env):
             # Apply lens distortion
             img_distorted = cv2.undistort(img, self.gantry_sim_model.camera_matrix,
                                           self.dist_coeffs)
-
+            img_cropped = img_distorted[10:470, 10:630]
+           
             # Convert the frame to grayscale
-            gray = cv2.cvtColor(img_distorted, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2GRAY)
 
             # Detect the markers in the frame
             corners, ids, rejected = cv2.aruco.detectMarkers(
@@ -198,10 +199,8 @@ class GantryEnv(gym.Env):
                     center = np.mean(marker_corners, axis=0).astype(int)
 
                 # Draw the detected markers and IDs on the frame
-                img_distorted = cv2.aruco.drawDetectedMarkers(img_distorted, corners, ids)
-
-            # Cropping
-            img_cropped = img_distorted[10:470, 10:630]
+                img_cropped = cv2.aruco.drawDetectedMarkers(img_cropped, corners, ids)
+            
             cv2.putText(img_cropped, f"{reward:.3f}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             if ids is not None:
                 cv2.line(img_cropped, self.wanted_pixel, center, (0,255,0),2)
