@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 
 if args.env == "Gantry-v0":
-    env = DummyVecEnv([lambda: GantryEnv(23006)])
+    env = DummyVecEnv([lambda: GantryEnv(23006, vis=True)])
     if args.norm:
         env = VecNormalize.load(args.norm, env)
     env.training = False
@@ -49,6 +49,8 @@ for _ in range(10):
         lstm_states = None
         episode_starts = np.ones((num_envs,), dtype=bool)
 
+    num_iter = 0
+
     while not done:
         if args.algo == "ppo_lstm":
             action, lstm_states = model.predict(
@@ -62,6 +64,8 @@ for _ in range(10):
         observation, reward, done, info = env.step(action)
         episode_reward += reward
         episode_starts = done
+        num_iter += 1
+        done = bool(num_iter > 100)
 
     print([episode_reward])
 

@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import gym
+import cv2
 from gym.utils import seeding
 from gym import spaces, logger
 from zmqRemoteApi import RemoteAPIClient
@@ -30,7 +31,7 @@ class GantryEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, port):
+    def __init__(self, port, vis=False):
         super(GantryEnv, self).__init__()
         self.q_last = [0, 470]
 
@@ -76,6 +77,8 @@ class GantryEnv(gym.Env):
 
         self.gantry_sim_model = GantrySimModel()
         self.gantry_sim_model.initializeSimModel(self.sim)
+
+        self.vis = vis
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -165,6 +168,49 @@ class GantryEnv(gym.Env):
                       vector_xy[0], vector_xy[1], cosine_sim)
         self.counts += 1
 
+        if self.vis:
+            img, resX, resY = self.sim.getVisionSensorCharImage(
+                self.visionSensorHandle)
+            img = np.frombuffer(img, dtype=np.uint8).reshape(resY, resX, 3)
+
+            # In CoppeliaSim images are left to right (x-axis), and bottom to top (y-axis)
+            # (consistent with the axes of vision sensors, pointing Z outwards, Y up)
+            # and color format is RGB triplets, whereas OpenCV uses BGR:
+            img = cv2.flip(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 0)
+
+            # Apply lens distortion
+            img_distorted = cv2.undistort(img, self.gantry_sim_model.camera_matrix,
+                                          self.dist_coeffs)
+
+            # Convert the frame to grayscale
+            gray = cv2.cvtColor(img_distorted, cv2.COLOR_BGR2GRAY)
+
+            # Detect the markers in the frame
+            corners, ids, rejected = cv2.aruco.detectMarkers(
+                gray, self.gantry_sim_model.aruco_dict,
+                parameters=self.gantry_sim_model.aruco_params)
+
+            # If the marker with ID 23 is detected, estimate its pose
+            if ids is not None:
+                if 23 in ids:
+                    index = np.where(ids == 23)[0][0]
+                    marker_corners = corners[index][0]
+                    center = np.mean(marker_corners, axis=0).astype(int)
+
+                # Draw the detected markers and IDs on the frame
+                img_distorted = cv2.aruco.drawDetectedMarkers(img_distorted, corners, ids)
+
+            # Cropping
+            img_cropped = img_distorted[10:470, 10:630]
+            cv2.putText(img_cropped, f"{reward:.3f}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            if ids is not None:
+                cv2.line(img_cropped, self.wanted_pixel, center, (0,255,0),2)
+            cv2.circle(img_cropped, self.wanted_pixel, 15, (0,0,255),1)
+            # Display the original and cropped images side by side
+            cv2.imshow('Original', img)
+            cv2.imshow('Cropped', img_cropped)
+            cv2.waitKey(1)
+
         self.client.step()
 
         return np.array(self.state, dtype=np.float32), reward, done, {}
@@ -210,11 +256,12 @@ class GantryEnv(gym.Env):
     def close(self):
         self.sim.stopSimulation()
         self.sim.setInt32Param(self.sim.intparam_idle_fps, self.defaultIdleFps)
+        cv2.destroyAllWindows()
         return None
 
 
 if __name__ == "__main__":
-    env = GantryEnv(23000)
+    env = GantryEnv(23006, vis=True)
     env.reset()
 
     for _ in range(500):
