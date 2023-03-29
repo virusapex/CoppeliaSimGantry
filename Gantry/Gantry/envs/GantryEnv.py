@@ -136,9 +136,9 @@ class GantryEnv(gym.Env):
         else:
             reward = -distance/10
             self.q_last = q
-            if distance < 15.0:
-                # Maximum reward if the robot is within 20 pixels of the target position
-                reward = 10.0
+            # if distance < 15.0:
+            #     # Maximum reward if the robot is within 20 pixels of the target position
+            #     reward = 10.0
 
         # Define the regularization parameter lambda
         lambda_ = 5
