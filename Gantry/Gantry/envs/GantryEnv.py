@@ -141,7 +141,7 @@ class GantryEnv(gym.Env):
             #     reward = 10.0
 
         # Define the regularization parameter lambda
-        lambda_ = 5
+        lambda_ = 10
 
         # Compute the L2 norm of the parameter vector theta
         reg_term = lambda_ * (np.linalg.norm(action) ** 2)
