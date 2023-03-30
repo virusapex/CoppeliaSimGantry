@@ -35,10 +35,10 @@ class GantryEnv(gym.Env):
         super(GantryEnv, self).__init__()
         self.q_last = [0, 470]
 
-        self.x_max = 630
-        self.x_min = 0
-        self.y_max = 470
-        self.y_min = 0
+        self.x_max = 480
+        self.x_min = 150
+        self.y_max = 320
+        self.y_min = 150
 
         # Don't forget to normalize when training
         self.action_space = spaces.Box(low=-1, high=1,
@@ -201,7 +201,12 @@ class GantryEnv(gym.Env):
                 # Draw the detected markers and IDs on the frame
                 img_cropped = cv2.aruco.drawDetectedMarkers(img_cropped, corners, ids)
             
-            cv2.putText(img_cropped, f"{reward:.3f}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(img_cropped, f"Reward: {reward:.3f}", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(img_cropped, f"Distance (px): {distance:.3f}", (10, 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(img_cropped, f"Cosine similarity: {cosine_sim:.3f}", (10, 90),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             if ids is not None:
                 cv2.line(img_cropped, self.wanted_pixel, center, (0,255,0),2)
             cv2.circle(img_cropped, self.wanted_pixel, 15, (0,0,255),1)

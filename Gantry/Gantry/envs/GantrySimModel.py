@@ -56,19 +56,8 @@ class GantrySimModel():
         self.floor_handle = sim.getObject('/Floor/box')
         if (self.floor_handle != -1):
             print('Got the floor handle.')
-        # Set the initialized position for each joint
-        self.setGantryPosition(sim, [0, 0])
-
-    def getGantryPosition(self, sim, joint_name):
-        q = 0
-        if joint_name == 'x':
-            q = sim.getJointPosition(self.gantryJoints[0])
-        elif joint_name == 'y':
-            q = sim.getJointPosition(self.gantryJoints[1])
-        else:
-            print('Error: joint name: \' ' + joint_name + '\' can not be recognized.')
-
-        return q
+        # Set the initialized velocity for each joint
+        self.setGantryVelocity(sim, [0, 0])
 
     def getGantryPixelPosition(self, sim, visionSensorHandle, dist_coeffs):
         img, resX, resY = sim.getVisionSensorCharImage(visionSensorHandle)
