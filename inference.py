@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 
 if args.env == "Gantry-v0":
-    env = DummyVecEnv([lambda: GantryEnv(23006)])
+    env = DummyVecEnv([lambda: GantryEnv(23006, render_mode="human")])
     if args.norm:
         env = VecNormalize.load(args.norm, env)
     env.training = False
@@ -64,6 +64,7 @@ for _ in range(10):
         observation, reward, done, info = env.step(action)
         episode_reward += reward
         episode_starts = done
+        env.render()
         num_iter += 1
         done = bool(num_iter > 100)
 

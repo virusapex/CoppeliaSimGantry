@@ -85,6 +85,10 @@ class GantryEnv(gym.Env):
         self.position_history = []  # empty list to store previous positions
         self.v = [0.0, 0.0]
         self.min_distance = 760
+        # For visualization purposes
+        self.distance = 0
+        self.reward = 0
+        self.cosine_sim = 0
 
         self.gantry_sim_model = GantrySimModel()
         self.gantry_sim_model.initializeSimModel(self.sim)
@@ -150,10 +154,10 @@ class GantryEnv(gym.Env):
             #     reward = 10.0
 
         # Define the regularization parameter lambda
-        lambda_ = 10
+        lambda_ = 1
 
         # Compute the L2 norm of the parameter vector theta
-        reg_term = lambda_ * (np.linalg.norm(action) ** 2)
+        reg_term = lambda_ * np.linalg.norm(action)
 
         if not done:
             # Normalizing distance values
@@ -176,6 +180,9 @@ class GantryEnv(gym.Env):
         self.state = (q[0], self.v[0], q[1], self.v[1],
                       vector_xy[0], vector_xy[1], cosine_sim)
         self.counts += 1
+        self.distance = distance
+        self.reward = reward
+        self.cosine_sim = cosine_sim
 
         self.client.step()
 
@@ -217,7 +224,7 @@ class GantryEnv(gym.Env):
 
         return np.array(self.state, dtype=np.float32)
 
-    def render(self):
+    def render(self, mode):
         if self.render_mode is None:
             assert self.spec is not None
             gym.logger.warn(
@@ -259,11 +266,11 @@ class GantryEnv(gym.Env):
             # Draw the detected markers and IDs on the frame
             img_cropped = cv2.aruco.drawDetectedMarkers(img_cropped, corners, ids)
         
-        cv2.putText(img_cropped, f"Reward: {reward:.3f}", (10, 30),
+        cv2.putText(img_cropped, f"Reward: {self.reward:.3f}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.putText(img_cropped, f"Distance (px): {distance:.3f}", (10, 60),
+        cv2.putText(img_cropped, f"Distance (px): {self.distance:.3f}", (10, 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.putText(img_cropped, f"Cosine similarity: {cosine_sim:.3f}", (10, 90),
+        cv2.putText(img_cropped, f"Cosine similarity: {self.cosine_sim:.3f}", (10, 90),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         if ids is not None:
             cv2.line(img_cropped, self.wanted_pixel, center, (0,255,0),2)
