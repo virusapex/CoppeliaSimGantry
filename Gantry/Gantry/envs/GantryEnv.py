@@ -60,7 +60,7 @@ class GantryEnv(gym.Env):
         self.seed()
 
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
-        self.state[:4] = self.np_random.randint(low=0, high=5, size=(2,))
+        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
         self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
         self.counts = 0
         self.steps_beyond_done = None
@@ -195,7 +195,7 @@ class GantryEnv(gym.Env):
     def reset(self):
         self.counts = 0
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
-        self.state[:4] = self.np_random.randint(low=0, high=5, size=(2,))
+        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
         self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
         self.steps_beyond_done = None
 
