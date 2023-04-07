@@ -149,15 +149,15 @@ class GantryEnv(gym.Env):
         else:
             reward = -distance/10
             self.q_last = q
-            # if distance < 15.0:
-            #     # Maximum reward if the robot is within 20 pixels of the target position
-            #     reward = 10.0
+            if distance < 10.0:
+                # Maximum reward if the robot is within 20 pixels of the target position
+                reward = 10.0
 
         # Define the regularization parameter lambda
-        lambda_ = 1
+        lambda_ = 10
 
         # Compute the L2 norm of the parameter vector theta
-        reg_term = lambda_ * np.linalg.norm(action)
+        reg_term = 0 #lambda_ * (np.linalg.norm(action)**2)
 
         if not done:
             # Normalizing distance values
@@ -233,7 +233,7 @@ class GantryEnv(gym.Env):
                 f'e.g. gym.make("{self.spec.id}", render_mode="rgb_array")'
             )
             return
-        
+
         img, resX, resY = self.sim.getVisionSensorCharImage(
                 self.visionSensorHandle)
         img = np.frombuffer(img, dtype=np.uint8).reshape(resY, resX, 3)
@@ -247,12 +247,12 @@ class GantryEnv(gym.Env):
         img_distorted = cv2.undistort(img, self.gantry_sim_model.camera_matrix,
                                         self.dist_coeffs)
         img_cropped = img_distorted[10:470, 10:630]
-        
+
         # Convert the frame to grayscale
         gray = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2GRAY)
 
         # Detect the markers in the frame
-        corners, ids, rejected = cv2.aruco.detectMarkers(
+        corners, ids, _rejected = cv2.aruco.detectMarkers(
             gray, self.gantry_sim_model.aruco_dict,
             parameters=self.gantry_sim_model.aruco_params)
 
@@ -265,7 +265,7 @@ class GantryEnv(gym.Env):
 
             # Draw the detected markers and IDs on the frame
             img_cropped = cv2.aruco.drawDetectedMarkers(img_cropped, corners, ids)
-        
+
         cv2.putText(img_cropped, f"Reward: {self.reward:.3f}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         cv2.putText(img_cropped, f"Distance (px): {self.distance:.3f}", (10, 60),
