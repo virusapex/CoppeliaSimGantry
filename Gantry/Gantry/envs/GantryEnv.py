@@ -18,7 +18,9 @@ class GantryEnv(gym.Env):
     Observations consist of
 
     - The coordinates of the Aruco marker
+    - The coordinates of target position
     - The velocities of the moving platforms
+    - The distance to the target position in both axes
     - The cosine between vectors of current movement and vector leading to wanted target (similarity)
 
     The observation is a `ndarray` with shape `(7,)` where the elements correspond to the following:
@@ -27,11 +29,13 @@ class GantryEnv(gym.Env):
     | --- | ---------------------------------------------- | ---- | --- | --------------------- |
     | 0   | x-coordinate of the marker                     |   0  | Inf | position (pixel)      |
     | 1   | y-coordinate of the marker                     |   0  | Inf | position (pixel)      |
-    | 2   | velocity of the x-platform                     | -Inf | Inf | velocity (pixel/step) |
-    | 3   | velocity of the y-platform                     | -Inf | Inf | velocity (pixel/step) |
-    | 4   | x-value of position_marker - position_target   | -Inf | Inf | position (pixel)      |
-    | 5   | y-value of position_marker - position_target   | -Inf | Inf | position (pixel)      |
-    | 6   | similarity value                               | -Inf | Inf | unitless              |
+    | 2   | x-coordinate of the target                     |   0  | Inf | position (pixel)      |
+    | 3   | y-coordinate of the target                     |   0  | Inf | position (pixel)      |
+    | 4   | velocity of the x-platform                     | -Inf | Inf | velocity (pixel/step) |
+    | 5   | velocity of the y-platform                     | -Inf | Inf | velocity (pixel/step) |
+    | 6   | x-value of position_marker - position_target   | -Inf | Inf | position (pixel)      |
+    | 7   | y-value of position_marker - position_target   | -Inf | Inf | position (pixel)      |
+    | 8   | similarity value                               | -Inf | Inf | unitless              |
     """
 
     metadata = {'render.modes': ['human', 'rgb_array'],
@@ -51,13 +55,13 @@ class GantryEnv(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1,
                                        shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(7,), dtype=np.float64)
+                                            shape=(9,), dtype=np.float64)
 
         self.seed()
 
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(7,))
-        self.state[:2] = self.np_random.randint(low=0, high=5, size=(2,))
-        self.state[4:6] = self.np_random.randint(low=-5, high=5, size=(2,))
+        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
+        self.state[:4] = self.np_random.randint(low=0, high=5, size=(2,))
+        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
         self.counts = 0
         self.steps_beyond_done = None
 
@@ -149,15 +153,15 @@ class GantryEnv(gym.Env):
         else:
             reward = -distance/10
             self.q_last = q
-            if distance < 10.0:
+            # if distance < 10.0:
                 # Maximum reward if the robot is within 20 pixels of the target position
-                reward = 10.0
+            #     reward = 10.0
 
         # Define the regularization parameter lambda
-        lambda_ = 10
+        lambda_ = 5
 
         # Compute the L2 norm of the parameter vector theta
-        reg_term = 0 #lambda_ * (np.linalg.norm(action)**2)
+        reg_term = lambda_ * (np.linalg.norm(action)**2)
 
         if not done:
             # Normalizing distance values
@@ -177,8 +181,8 @@ class GantryEnv(gym.Env):
             self.steps_beyond_done += 1
             reward = 0.0
 
-        self.state = (q[0], self.v[0], q[1], self.v[1],
-                      vector_xy[0], vector_xy[1], cosine_sim)
+        self.state = (q[0], q[1], self.wanted_pixel[0], self.wanted_pixel[1],
+                      self.v[0], self.v[1], vector_xy[0], vector_xy[1], cosine_sim)
         self.counts += 1
         self.distance = distance
         self.reward = reward
@@ -190,9 +194,9 @@ class GantryEnv(gym.Env):
 
     def reset(self):
         self.counts = 0
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(7,))
-        self.state[:2] = self.np_random.randint(low=0, high=5, size=(2,))
-        self.state[4:6] = self.np_random.randint(low=-5, high=5, size=(2,))
+        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
+        self.state[:4] = self.np_random.randint(low=0, high=5, size=(2,))
+        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
