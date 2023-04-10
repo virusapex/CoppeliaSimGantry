@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from sb3_contrib import RecurrentPPO, ARS
+from sb3_contrib import RecurrentPPO, TQC
 
 from Gantry.envs.GantryEnv import GantryEnv
 
@@ -24,17 +24,18 @@ if args.env == "Gantry-v0":
     env = DummyVecEnv([lambda: GantryEnv(23006, render_mode="human")])
     if args.norm:
         env = VecNormalize.load(args.norm, env)
+    else:
+        env.norm_reward = False
     env.training = False
-    env.norm_reward = False
 
 if args.algo == "ppo":
     model = PPO.load(args.trained_agent, env=env)
 elif args.algo == "ppo_lstm":
     model = RecurrentPPO.load(args.trained_agent, env=env)
-elif args.algo == "ars":
-    model = ARS.load(args.trained_agent, env=env)
 elif args.algo == "sac":
     model = SAC.load(args.trained_agent, env=env)
+elif args.algo == "tqc":
+    model = TQC.load(args.trained_agent, env=env)
 
 # ---------------- Prediction
 print('Prediction')
