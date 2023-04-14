@@ -151,7 +151,7 @@ class GantryEnv(gym.Env):
             self.v = np.array([0.0,0.0])
 
         else:
-            reward = 760/distance
+            reward = distance and 760/distance or 1000
             self.q_last = q
 
         # Define the regularization parameter lambda
