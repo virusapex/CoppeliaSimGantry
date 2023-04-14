@@ -145,13 +145,13 @@ class GantryEnv(gym.Env):
 
         # if distance_decreasing:
         if not marker:
-            reward = -1000
+            reward = -1
             cosine_sim = 0
             vector_xy = np.array([500,500])
             self.v = np.array([0.0,0.0])
 
         else:
-            reward = -distance
+            reward = 760/distance
             self.q_last = q
 
         # Define the regularization parameter lambda
