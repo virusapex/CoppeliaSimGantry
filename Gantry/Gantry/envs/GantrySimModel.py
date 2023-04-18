@@ -109,8 +109,12 @@ class GantrySimModel():
         sim.setJointTargetPosition(self.gantryJoints[1], float(action[1]))
 
     def setGantryVelocity(self, sim, speed):
-        sim.setJointTargetVelocity(self.gantryJoints[0], float(speed[0]))
-        sim.setJointTargetVelocity(self.gantryJoints[1], float(speed[1]))
+        if np.linalg.norm(speed) >= 0.05:
+            sim.setJointTargetVelocity(self.gantryJoints[0], float(speed[0]))
+            sim.setJointTargetVelocity(self.gantryJoints[1], float(speed[1]))
+        else:
+            sim.setJointTargetVelocity(self.gantryJoints[0], 0.0)
+            sim.setJointTargetVelocity(self.gantryJoints[1], 0.0)
 
     def resetGantryPosition(self, sim):
         sim.setJointPosition(self.gantryJoints[0], np.random.uniform(low=0.0, high=0.6))

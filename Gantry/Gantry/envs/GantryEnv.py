@@ -108,6 +108,7 @@ class GantryEnv(gym.Env):
         # Position of Gantry robot (X- and Y-axis)
         q = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
+        q += np.random.randint(-3,3,2)  # simulating camera noise
 
         if q[0] == 0.0:
             marker = 0
@@ -155,7 +156,7 @@ class GantryEnv(gym.Env):
             self.q_last = q
 
         # Define the regularization parameter lambda
-        lambda_ = 500
+        lambda_ = reward
 
         # Compute the L2 norm of the parameter vector theta
         reg_term = lambda_ * (np.linalg.norm(action)**2)
