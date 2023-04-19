@@ -119,7 +119,7 @@ class GantryEnv(gym.Env):
                 self.q_last = [0, 470]
         else:
             self.position_history.append(q)
-            if len(self.position_history) > 0:  # if history has more than 1 position (33ms delay)
+            if len(self.position_history) > 1:  # if history has more than 1 position (33ms delay)
                 # remove oldest position and set it as current position
                 q = self.position_history.pop(0)
                 self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
@@ -156,7 +156,7 @@ class GantryEnv(gym.Env):
             self.q_last = q
 
         # Define the regularization parameter lambda
-        lambda_ = reward
+        lambda_ = 500
 
         # Compute the L2 norm of the parameter vector theta
         reg_term = lambda_ * (np.linalg.norm(action)**2)
