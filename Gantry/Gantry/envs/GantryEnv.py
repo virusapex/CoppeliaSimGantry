@@ -119,8 +119,8 @@ class GantryEnv(gym.Env):
                 self.q_last = [0, 470]
         else:
             self.position_history.append(q)
-            if len(self.position_history) > 1:  # if history has more than 1 position (33ms delay)
-                # remove oldest position and set it as current position
+            if len(self.position_history) > 5:  # if history has more than 5 positions (165ms delay)
+                # Remove the oldest position and set it as current position
                 q = self.position_history.pop(0)
                 self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
                           (q[1] - self.q_last[1])/(dt*1000)]
