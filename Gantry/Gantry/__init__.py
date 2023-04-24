@@ -9,6 +9,6 @@ register(
 
 register(
     id='Gantry-v1',
-    entry_point='Gantry.envs:GantryEnv_v1',
+    entry_point='Gantry.envs.GantryEnv_v1:GantryEnv',
     max_episode_steps=100,
 )

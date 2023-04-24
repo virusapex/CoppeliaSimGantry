@@ -63,7 +63,7 @@ for _ in range(10):
             action, _state = model.predict(observation, deterministic=True)
 
         # Might be useful for stopping the model when reaching the goal
-        # action = action if np.linalg.norm(action) >= 0.05 else np.array([[0.0,0.0]])
+        action = action if np.linalg.norm(action) >= 0.05 else np.array([[0.0,0.0]])
         observation, reward, done, info = env.step(action)
 
         episode_reward += reward

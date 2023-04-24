@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import gym
+import cv2
 from gym.utils import seeding
 from gym import spaces, logger
 from zmqRemoteApi import RemoteAPIClient
@@ -9,45 +10,58 @@ from Gantry.envs.GantrySimModel import GantrySimModel
 
 class GantryEnv(gym.Env):
     """
-        Observations consist of
+    ## Description
+    "Gantry" is a two-jointed robot system. The goal is to move the robot's end effector close to a
+    target that is spawned at a random position.
 
-        - The coordinates of the Aruco marker
-        - The velocities of the moving platforms
-        - The cosine between vectors of current movement and vector leading to wanted target (similarity)
+    ## Observation Space
+    Observations consist of
 
-        The observation is a `ndarray` with shape `(7,)` where the elements correspond to the following:
-        
-        | Num | Observation                                    | Min  | Max | Unit                  |
-        | --- | ---------------------------------------------- | ---- | --- | --------------------- |
-        | 0   | x-coordinate of the marker                     | -Inf | Inf | position (pixel)      |
-        | 1   | y-coordinate of the marker                     | -Inf | Inf | position (pixel)      |
-        | 2   | velocity of the x-platform                     | -Inf | Inf | velocity (pixel/step) |
-        | 3   | velocity of the y-platform                     | -Inf | Inf | velocity (pixel/step) |
-        | 4   | x-value of position_marker - position_target   | -Inf | Inf | position (m)          |
-        | 5   | y-value of position_marker - position_target   | -Inf | Inf | position (m)          |
-        | 6   | similarity value                               | -Inf | Inf | unitless              |
+    - The coordinates of the Aruco marker
+    - The coordinates of target position
+    - The velocities of the moving platforms
+    - The distance to the target position in both axes
+    - The cosine between vectors of current movement and vector leading to wanted target (similarity)
+
+    The observation is a `ndarray` with shape `(7,)` where the elements correspond to the following:
+    
+    | Num | Observation                                    | Min  | Max | Unit                  |
+    | --- | ---------------------------------------------- | ---- | --- | --------------------- |
+    | 0   | x-coordinate of the marker                     |   0  | Inf | position (pixel)      |
+    | 1   | y-coordinate of the marker                     |   0  | Inf | position (pixel)      |
+    | 2   | x-coordinate of the target                     |   0  | Inf | position (pixel)      |
+    | 3   | y-coordinate of the target                     |   0  | Inf | position (pixel)      |
+    | 4   | velocity of the x-platform                     | -Inf | Inf | velocity (pixel/step) |
+    | 5   | velocity of the y-platform                     | -Inf | Inf | velocity (pixel/step) |
+    | 6   | x-value of position_marker - position_target   | -Inf | Inf | position (pixel)      |
+    | 7   | y-value of position_marker - position_target   | -Inf | Inf | position (pixel)      |
+    | 8   | similarity value                               | -Inf | Inf | unitless              |
     """
 
-    metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human', 'rgb_array'],
+                'render_fps':   50}
 
-    def __init__(self, port):
+    def __init__(self, port, render_mode=None):
         super(GantryEnv, self).__init__()
         self.q_last = [0, 470]
 
-        self.x_max = 630
-        self.x_min = 0
-        self.y_max = 470
-        self.y_min = 0
+        # Pixel limits for wanted target
+        self.x_max = 480
+        self.x_min = 150
+        self.y_max = 320
+        self.y_min = 150
 
         # Don't forget to normalize when training
         self.action_space = spaces.Box(low=-1, high=1,
                                        shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(7,), dtype=np.float64)
+                                            shape=(9,), dtype=np.float64)
 
         self.seed()
 
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(7,))
+        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
+        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
+        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
         self.counts = 0
         self.steps_beyond_done = None
 
@@ -66,6 +80,8 @@ class GantryEnv(gym.Env):
 
         self.visionSensorHandle = self.sim.getObject('/rgb')
         print('Connected to vision sensor.')
+
+        self.render_mode = render_mode
         # Initialize distortion coefficients
         self.dist_coeffs = np.zeros((5,))
         # Wanted pixel position
@@ -73,6 +89,10 @@ class GantryEnv(gym.Env):
         self.position_history = []  # empty list to store previous positions
         self.v = [0.0, 0.0]
         self.min_distance = 760
+        # For visualization purposes
+        self.distance = 0
+        self.reward = 0
+        self.cosine_sim = 0
 
         self.gantry_sim_model = GantrySimModel()
         self.gantry_sim_model.initializeSimModel(self.sim)
@@ -88,26 +108,24 @@ class GantryEnv(gym.Env):
         # Position of Gantry robot (X- and Y-axis)
         q = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
+        q += np.random.randint(-3,3,2)  # simulating camera noise
 
         if q[0] == 0.0:
             marker = 0
             q = self.q_last  # marker was not found
-            if len(self.position_history) > 1:  # if history exists
+            if len(self.position_history) > 0:  # if history exists
                 self.q_last = self.position_history[0]
             else:
                 self.q_last = [0, 470]
         else:
             self.position_history.append(q)
-            # TODO change delay buffer size
-            if len(self.position_history) > 1:  # if history has more than 1 position (33ms delay)
-                # remove oldest position and set it as current position
+            if len(self.position_history) > 5:  # if history has more than 5 positions (165ms delay)
+                # Remove the oldest position and set it as current position
                 q = self.position_history.pop(0)
                 self.v = [(q[0] - self.q_last[0])/(dt*1000),   # velocity change for dt
                           (q[1] - self.q_last[1])/(dt*1000)]
 
         # Set action
-        # action = (action + 1)/3.34  # from [-1,1] to [0,0.6]
-        # self.gantry_sim_model.setGantryPosition(self.sim, action)
         action /= 2  # from [-1,1] to [-0.5,0.5]
         self.gantry_sim_model.setGantryVelocity(self.sim, action)
 
@@ -124,42 +142,21 @@ class GantryEnv(gym.Env):
         if distance < self.min_distance:
             self.min_distance = distance
 
-        # Conditions for stopping the episode
-        # done = (q[0] < self.x_min) or (q[0] > self.x_max) \
-        #     or (q[1] < self.y_min) or (q[1] > self.y_max)
-        # done = bool(done)
         done = False
 
         # if distance_decreasing:
         if not marker:
-            reward = 0
+            reward = -1
             cosine_sim = 0
             vector_xy = np.array([500,500])
             self.v = np.array([0.0,0.0])
 
         else:
-            reward = 1 - (distance**2/617796)
+            reward = distance and 760/distance or 1000
             self.q_last = q
-            if distance < 20.0:
-                # Maximum reward if the robot is within 20 pixels of the target position
-                reward = 10.0
-            '''
-            if distance < 20.0:
-                # Maximum reward if the robot is within 20 pixels of the target position
-                reward = 10.0
-                self.wanted_pixel = [np.random.randint(self.x_min, self.x_max),
-                                    np.random.randint(self.y_min, self.y_max)]
-                self.counts = 0
-            elif self.counts <= 200:
-                # reward = -distance
-                reward = 1 - (distance**2/617796)
-            else:
-                reward = 1 - (distance**2/617796)
-                done = True
-                self.reset()
-            '''
+        
         # Define the regularization parameter lambda
-        lambda_ = 0.1
+        lambda_ = 500
 
         # Compute the L2 norm of the parameter vector theta
         reg_term = lambda_ * (np.linalg.norm(action) ** 2)
@@ -182,9 +179,12 @@ class GantryEnv(gym.Env):
             self.steps_beyond_done += 1
             reward = 0.0
 
-        self.state = (q[0], self.v[0], q[1], self.v[1],
-                      vector_xy[0], vector_xy[1], cosine_sim)
+        self.state = (q[0], q[1], self.wanted_pixel[0], self.wanted_pixel[1],
+                      self.v[0], self.v[1], vector_xy[0], vector_xy[1], cosine_sim)
         self.counts += 1
+        self.distance = distance
+        self.reward = reward
+        self.cosine_sim = cosine_sim
 
         self.client.step()
 
@@ -192,8 +192,9 @@ class GantryEnv(gym.Env):
 
     def reset(self):
         self.counts = 0
-        self.push_force = 0
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(7,))
+        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
+        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
+        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
@@ -220,29 +221,86 @@ class GantryEnv(gym.Env):
 
         self.client.setStepping(True)
         self.sim.startSimulation()
-        # self.gantry_sim_model.setGantryPosition(self.sim, [0.0, 0.0])
         self.gantry_sim_model.setGantryVelocity(self.sim, [0.0, 0.0])
         self.gantry_sim_model.resetGantryPosition(self.sim)
         self.gantry_sim_model.resetCameraOrientation(self.sim, self.visionSensorHandle)
 
         return np.array(self.state, dtype=np.float32)
 
-    def render(self):
-        return None
+    def render(self, mode):
+        if self.render_mode is None:
+            assert self.spec is not None
+            gym.logger.warn(
+                "You are calling render method without specifying any render mode. "
+                "You can specify the render_mode at initialization, "
+                f'e.g. gym.make("{self.spec.id}", render_mode="rgb_array")'
+            )
+            return
+
+        img, resX, resY = self.sim.getVisionSensorCharImage(
+                self.visionSensorHandle)
+        img = np.frombuffer(img, dtype=np.uint8).reshape(resY, resX, 3)
+
+        # In CoppeliaSim images are left to right (x-axis), and bottom to top (y-axis)
+        # (consistent with the axes of vision sensors, pointing Z outwards, Y up)
+        # and color format is RGB triplets, whereas OpenCV uses BGR:
+        img = cv2.flip(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 0)
+
+        # Apply lens distortion
+        img_distorted = cv2.undistort(img, self.gantry_sim_model.camera_matrix,
+                                        self.dist_coeffs)
+        img_cropped = img_distorted[10:470, 10:630]
+
+        # Convert the frame to grayscale
+        gray = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2GRAY)
+
+        # Detect the markers in the frame
+        corners, ids, _rejected = cv2.aruco.detectMarkers(
+            gray, self.gantry_sim_model.aruco_dict,
+            parameters=self.gantry_sim_model.aruco_params)
+
+        # If the marker with ID 23 is detected, estimate its pose
+        if ids is not None:
+            if 23 in ids:
+                index = np.where(ids == 23)[0][0]
+                marker_corners = corners[index][0]
+                center = np.mean(marker_corners, axis=0).astype(int)
+
+            # Draw the detected markers and IDs on the frame
+            img_cropped = cv2.aruco.drawDetectedMarkers(img_cropped, corners, ids)
+
+        cv2.putText(img_cropped, f"Reward: {self.reward:.3f}", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(img_cropped, f"Distance (px): {self.distance:.3f}", (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(img_cropped, f"Cosine similarity: {self.cosine_sim:.3f}", (10, 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        if ids is not None:
+            cv2.line(img_cropped, self.wanted_pixel, center, (0,255,0),2)
+        cv2.circle(img_cropped, self.wanted_pixel, 15, (0,0,255),1)
+
+        if self.render_mode == "human":
+            # Display the original and cropped images side by side
+            cv2.imshow('Original', img)
+            cv2.imshow('Cropped', img_cropped)
+            cv2.waitKey(20)
+        else:
+            return img_cropped
 
     def close(self):
         self.sim.stopSimulation()
         self.sim.setInt32Param(self.sim.intparam_idle_fps, self.defaultIdleFps)
+        cv2.destroyAllWindows()
         return None
 
 
 if __name__ == "__main__":
-    env = GantryEnv(23000)
+    env = GantryEnv(23006, render_mode="human")
     env.reset()
 
     for _ in range(500):
         action = env.action_space.sample()  # random action
         env.step(action)
-        # print(env.state)
+        env.render("human")
 
     env.close()
