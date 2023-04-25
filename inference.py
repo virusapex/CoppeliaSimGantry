@@ -4,8 +4,6 @@ from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from sb3_contrib import RecurrentPPO, TQC
 
-from Gantry.envs.GantryEnv import GantryEnv
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--algo", help="RL Algorithm",
@@ -21,12 +19,16 @@ args = parser.parse_args()
 
 
 if args.env == "Gantry-v0":
+    from Gantry.envs.GantryEnv import GantryEnv
     env = DummyVecEnv([lambda: GantryEnv(23006, render_mode="human")])
-    if args.norm:
-        env = VecNormalize.load(args.norm, env)
-    else:
-        env.norm_reward = False
-    env.training = False
+if args.env == "Gantry-v1":
+    from Gantry.envs.GantryEnv_v1 import GantryEnv
+    env = DummyVecEnv([lambda: GantryEnv(23006, render_mode="human")])
+if args.norm:
+    env = VecNormalize.load(args.norm, env)
+else:
+    env.norm_reward = False
+env.training = False
 
 if args.algo == "ppo":
     model = PPO.load(args.trained_agent, env=env)
@@ -63,7 +65,7 @@ for _ in range(10):
             action, _state = model.predict(observation, deterministic=True)
 
         # Might be useful for stopping the model when reaching the goal
-        action = action if np.linalg.norm(action) >= 0.05 else np.array([[0.0,0.0]])
+        action = action if np.linalg.norm(action) >= 0.05 else np.array([[0.0, 0.0]])
         observation, reward, done, info = env.step(action)
 
         episode_reward += reward
