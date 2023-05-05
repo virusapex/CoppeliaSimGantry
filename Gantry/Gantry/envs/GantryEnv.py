@@ -206,7 +206,7 @@ class GantryEnv(gym.Env):
 
         return np.array(self.state, dtype=np.float32), reward, done, False, {}
 
-   def reset(self, *, seed=None, options=None):
+    def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
 
         self.counts = 0
