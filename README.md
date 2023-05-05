@@ -1,3 +1,4 @@
  - Register environment in import_envs.py
  - Change hyperparams_opt.py to allow gSDE tuning
  - Copy tuned configs to this repo
+ - zmqRemoteAPI from ```pip install coppeliasim-zmqremoteapi-client```
