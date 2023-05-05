@@ -212,9 +212,11 @@ class GantryEnv(gym.Env):
 
         self.client.step()
 
-        return np.array(self.state, dtype=np.float32), reward, done, {}
+        return np.array(self.state, dtype=np.float32), reward, done, False, {}
 
     def reset(self):
+        super().reset(seed=seed)
+        
         self.counts = 0
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
         self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
@@ -248,7 +250,7 @@ class GantryEnv(gym.Env):
         self.gantry_sim_model.setGantryVelocity(self.sim, [0.0, 0.0])
         self.gantry_sim_model.resetGantryPosition(self.sim)
 
-        return np.array(self.state, dtype=np.float32)
+        return np.array(self.state, dtype=np.float32), {}
 
     def render(self, mode):
         if self.render_mode is None:

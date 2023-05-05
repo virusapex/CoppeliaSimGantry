@@ -62,8 +62,8 @@ class GantryEnv(gym.Env):
         self.seed()
 
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
-        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
-        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
+        self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
+        self.state[6:8] = self.np_random.integers(low=-5, high=5, size=(2,))
         self.counts = 0
         self.steps_beyond_done = None
 
@@ -118,10 +118,6 @@ class GantryEnv(gym.Env):
 
         self.gantry_sim_model = GantrySimModel()
         self.gantry_sim_model.initializeSimModel(self.sim)
-
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
 
     def step(self, action):
         dt = 0.0333  # time step in simulation seconds
@@ -211,13 +207,15 @@ class GantryEnv(gym.Env):
 
         self.client.step()
 
-        return np.array(self.state, dtype=np.float32), reward, done, {}
+        return np.array(self.state, dtype=np.float32), reward, done, False, {}
 
-    def reset(self):
+    def reset(self, *, seed, options):
+        super().reset(seed=seed)
+
         self.counts = 0
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
-        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
-        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
+        self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
+        self.state[6:8] = self.np_random.integers(low=-5, high=5, size=(2,))
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
@@ -248,7 +246,7 @@ class GantryEnv(gym.Env):
         self.gantry_sim_model.resetGantryPosition(self.sim)
         self.gantry_sim_model.resetCameraOrientation(self.sim, self.visionSensorHandle)
 
-        return np.array(self.state, dtype=np.float32)
+        return np.array(self.state, dtype=np.float32), {}
 
     def render(self, mode):
         if self.render_mode is None:
