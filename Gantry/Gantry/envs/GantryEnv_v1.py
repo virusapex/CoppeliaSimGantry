@@ -1,12 +1,11 @@
 import time
 import numpy as np
-import gym
+import gymnasium as gym
 import cv2
 import psutil
 import sys
-from gym.utils import seeding
-from gym import spaces, logger
-from zmqRemoteApi import RemoteAPIClient
+from gymnasium import spaces, logger
+from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 from Gantry.envs.GantrySimModel import GantrySimModel
 
 
@@ -57,7 +56,7 @@ class GantryEnv(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1,
                                        shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(9,), dtype=np.float64)
+                                            shape=(9,), dtype=np.float32)
 
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
         self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
@@ -207,7 +206,7 @@ class GantryEnv(gym.Env):
 
         return np.array(self.state, dtype=np.float32), reward, done, False, {}
 
-    def reset(self, *, seed, options):
+    def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
 
         self.counts = 0
