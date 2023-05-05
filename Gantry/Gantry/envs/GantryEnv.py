@@ -1,12 +1,11 @@
 import time
 import numpy as np
-import gym
+import gymnasium as gym
 import cv2
 import psutil
 import sys
-from gym.utils import seeding
-from gym import spaces, logger
-from zmqRemoteApi import RemoteAPIClient
+from gymnasium import spaces, logger
+from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 from Gantry.envs.GantrySimModel import GantrySimModel
 
 
@@ -57,13 +56,11 @@ class GantryEnv(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1,
                                        shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(9,), dtype=np.float64)
-
-        self.seed()
+                                            shape=(9,), dtype=np.float32)
 
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
-        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
-        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
+        self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
+        self.state[6:8] = self.np_random.integers(low=-5, high=5, size=(2,))
         self.counts = 0
         self.steps_beyond_done = None
 
@@ -119,10 +116,6 @@ class GantryEnv(gym.Env):
         self.gantry_sim_model = GantrySimModel()
         self.gantry_sim_model.initializeSimModel(self.sim)
 
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
-
     def step(self, action):
         dt = 0.0333  # time step in simulation seconds
         marker = 1
@@ -130,7 +123,6 @@ class GantryEnv(gym.Env):
         # Position of Gantry robot (X- and Y-axis)
         q = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
-
         # TODO Probably remove since gSDE is present
         # q += np.random.randint(-3,3,2)  # simulating camera noise
 
@@ -172,8 +164,8 @@ class GantryEnv(gym.Env):
         if not marker:
             reward = -1
             cosine_sim = 0
-            vector_xy = np.array([500,500])
-            self.v = np.array([0.0,0.0])
+            vector_xy = np.array([500, 500])
+            self.v = np.array([0.0, 0.0])
 
         else:
             reward = distance and 760/distance or 1000
@@ -214,13 +206,13 @@ class GantryEnv(gym.Env):
 
         return np.array(self.state, dtype=np.float32), reward, done, False, {}
 
-    def reset(self):
+   def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        
+
         self.counts = 0
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
-        self.state[:4] = self.np_random.randint(low=0, high=5, size=(4,))
-        self.state[6:8] = self.np_random.randint(low=-5, high=5, size=(2,))
+        self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
+        self.state[6:8] = self.np_random.integers(low=-5, high=5, size=(2,))
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
