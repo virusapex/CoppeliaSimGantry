@@ -59,8 +59,6 @@ class GantryEnv(gym.Env):
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
                                             shape=(9,), dtype=np.float64)
 
-        self.seed()
-
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
         self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
         self.state[6:8] = self.np_random.integers(low=-5, high=5, size=(2,))
