@@ -2,6 +2,8 @@ import time
 import numpy as np
 import gym
 import cv2
+import psutil
+import sys
 from gym.utils import seeding
 from gym import spaces, logger
 from zmqRemoteApi import RemoteAPIClient
@@ -24,7 +26,7 @@ class GantryEnv(gym.Env):
     - The cosine between vectors of current movement and vector leading to wanted target (similarity)
 
     The observation is a `ndarray` with shape `(7,)` where the elements correspond to the following:
-    
+
     | Num | Observation                                    | Min  | Max | Unit                  |
     | --- | ---------------------------------------------- | ---- | --- | --------------------- |
     | 0   | x-coordinate of the marker                     |   0  | Inf | position (pixel)      |
@@ -41,7 +43,7 @@ class GantryEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'],
                 'render_fps':   50}
 
-    def __init__(self, port, render_mode=None):
+    def __init__(self, render_mode=None):
         super(GantryEnv, self).__init__()
         self.q_last = [0, 470]
 
@@ -65,10 +67,30 @@ class GantryEnv(gym.Env):
         self.counts = 0
         self.steps_beyond_done = None
 
+        # Define the port range and status
+        port_range = [port for port in range(23000, 23021, 2)]
+        status = 'ESTABLISHED'
+        ip_address = '127.0.0.1'
+
+        # Loop through each process and check if it matches the criteria
+        for conn in psutil.net_connections():
+            try:
+                if conn.status == status and conn.raddr.port in port_range and conn.raddr.ip == ip_address:
+                    print(f"A process is using port {conn.raddr.port} with status '{conn.status}'")
+                    port_range.remove(conn.raddr.port)
+
+            except (psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        try:
+            port = port_range[0]
+        except IndexError:
+            print("No available ports! Exiting...")
+            sys.exit()
+
         # Connect to CoppeliaSim
         self.client = RemoteAPIClient(port=port)
         self.sim = self.client.getObject('sim')
-        print('Connected to remote API server.')
+        print(f'Connected to remote API server {port}.')
         # When simulation is not running, ZMQ message handling could be a bit
         # slow, since the idle loop runs at 8 Hz by default. So let's make
         # sure that the idle loop runs at full speed for this program:
@@ -108,7 +130,9 @@ class GantryEnv(gym.Env):
         # Position of Gantry robot (X- and Y-axis)
         q = self.gantry_sim_model.getGantryPixelPosition(
             self.sim, self.visionSensorHandle, self.dist_coeffs)
-        q += np.random.randint(-3,3,2)  # simulating camera noise
+
+        # TODO Probably remove since gSDE is present
+        # q += np.random.randint(-3,3,2)  # simulating camera noise
 
         if q[0] == 0.0:
             marker = 0
@@ -135,7 +159,7 @@ class GantryEnv(gym.Env):
             np.array(self.q_last) - np.array(q))
         vector_xy = np.array(self.wanted_pixel) - np.array(q)
         vector_last_xy = np.array(q) - np.array(self.q_last)
-        cosine_sim = np.dot(vector_xy,vector_last_xy)/np.dot(distance,distance_last)
+        cosine_sim = np.dot(vector_xy, vector_last_xy)/np.dot(distance, distance_last)
         if np.isnan(cosine_sim):
             cosine_sim = 0
 
@@ -159,7 +183,7 @@ class GantryEnv(gym.Env):
         lambda_ = 500
 
         # Compute the L2 norm of the parameter vector theta
-        reg_term = lambda_ * (np.linalg.norm(action)**2)
+        reg_term = lambda_ * (np.linalg.norm(action) ** 2)
 
         if not done:
             # Normalizing distance values
@@ -247,7 +271,7 @@ class GantryEnv(gym.Env):
 
         # Apply lens distortion
         img_distorted = cv2.undistort(img, self.gantry_sim_model.camera_matrix,
-                                        self.dist_coeffs)
+                                      self.dist_coeffs)
         img_cropped = img_distorted[10:470, 10:630]
 
         # Convert the frame to grayscale
@@ -275,8 +299,8 @@ class GantryEnv(gym.Env):
         cv2.putText(img_cropped, f"Cosine similarity: {self.cosine_sim:.3f}", (10, 90),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         if ids is not None:
-            cv2.line(img_cropped, self.wanted_pixel, center, (0,255,0),2)
-        cv2.circle(img_cropped, self.wanted_pixel, 15, (0,0,255),1)
+            cv2.line(img_cropped, self.wanted_pixel, center, (0, 255, 0), 2)
+        cv2.circle(img_cropped, self.wanted_pixel, 15, (0, 0, 255), 1)
 
         if self.render_mode == "human":
             # Display the original and cropped images side by side
@@ -294,11 +318,12 @@ class GantryEnv(gym.Env):
 
 
 if __name__ == "__main__":
-    env = GantryEnv(23006)
+    env = GantryEnv(render_mode="human")
     env.reset()
 
     for _ in range(500):
         action = env.action_space.sample()  # random action
         env.step(action)
+        env.render("human")
 
     env.close()
