@@ -85,6 +85,7 @@ class GantryEnv(gym.Env):
         # Wanted pixel position
         self.wanted_pixel = [350, 250]
         self.position_history = []  # empty list to store previous positions
+        self.min_distance = 760
         # For visualization purposes
         self.distance = 0
         self.reward = 0
