@@ -168,9 +168,7 @@ class GantryEnv(gym.Env):
         super().reset(seed=seed)
 
         self.counts = 0
-        self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
-        self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
-        self.state[6:8] = self.np_random.integers(low=-5, high=5, size=(2,))
+        self.state = np.zeros((460, 620), np.uint8)
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
@@ -201,7 +199,7 @@ class GantryEnv(gym.Env):
         self.gantry_sim_model.resetGantryPosition(self.sim)
         self.gantry_sim_model.resetCameraOrientation(self.sim, self.visionSensorHandle)
 
-        return np.array(self.state, dtype=np.float32), {}
+        return self.state, {}
 
     def render(self, mode):
         if self.render_mode is None:
