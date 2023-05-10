@@ -59,7 +59,7 @@ class GantrySimModel():
         # Set the initialized velocity for each joint
         self.setGantryVelocity(sim, [0, 0])
 
-    def getGantryPixelPosition(self, sim, visionSensorHandle, dist_coeffs):
+    def getGantryPixelPosition(self, sim, visionSensorHandle, dist_coeffs, mode="aruco"):
         img, resX, resY = sim.getVisionSensorCharImage(visionSensorHandle)
         img = np.frombuffer(img, dtype=np.uint8).reshape(resY, resX, 3)
 
@@ -89,7 +89,10 @@ class GantrySimModel():
                 center = np.mean(marker_corners, axis=0).astype(int)
 
                 # Return the center position
-                return center
+                if mode == "aruco":
+                    return center
+                else:
+                    return (center, gray)
 
         return [0, 470]
 
