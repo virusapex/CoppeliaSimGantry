@@ -37,7 +37,7 @@ class GantryEnv(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1,
                                        shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255,
-                                            shape=(0, 255, (460, 620)), dtype=np.uint8)
+                                            shape=(460, 620, 1), dtype=np.uint8)
 
         self.state = np.expand_dims(np.zeros((460, 620), np.uint8), axis=-1)
         self.counts = 0
