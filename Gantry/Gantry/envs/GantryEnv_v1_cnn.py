@@ -37,9 +37,9 @@ class GantryEnv(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1,
                                        shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255,
-                                            shape=(460, 620), dtype=np.uint8)
+                                            shape=(0, 255, (460, 620)), dtype=np.uint8)
 
-        self.state = np.zeros((460, 620), np.uint8)
+        self.state = np.expand_dims(np.zeros((460, 620), np.uint8), axis=-1)
         self.counts = 0
         self.steps_beyond_done = None
 
@@ -156,7 +156,7 @@ class GantryEnv(gym.Env):
             self.steps_beyond_done += 1
             reward = 0.0
 
-        self.state = img
+        self.state = np.expand_dims(img, axis=-1)
         self.counts += 1
         self.reward = reward
 
@@ -168,7 +168,7 @@ class GantryEnv(gym.Env):
         super().reset(seed=seed)
 
         self.counts = 0
-        self.state = np.zeros((460, 620), np.uint8)
+        self.state = np.expand_dims(np.zeros((460, 620), np.uint8), axis=-1)
         self.steps_beyond_done = None
 
         # Create random distortion coefficients
