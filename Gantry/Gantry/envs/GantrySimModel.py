@@ -93,8 +93,11 @@ class GantrySimModel():
                     return center
                 else:
                     return (center, gray)
-
-        return [0, 470]
+                    
+        if mode == "aruco":
+            return [0, 470]
+        else:
+            return ([0, 470], gray)
 
     def getJointPosition(self, sim, joint_name):
         q = 0
