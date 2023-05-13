@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
 from stable_baselines3 import PPO, SAC
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack
 from sb3_contrib import RecurrentPPO, TQC
 
 
@@ -20,10 +20,13 @@ args = parser.parse_args()
 
 if args.env == "Gantry-v0":
     from Gantry.envs.GantryEnv import GantryEnv
-    env = DummyVecEnv([lambda: GantryEnv(23006, render_mode="human")])
+    env = DummyVecEnv([lambda: GantryEnv(render_mode="human")])
 if args.env == "Gantry-v1":
     from Gantry.envs.GantryEnv_v1 import GantryEnv
-    env = DummyVecEnv([lambda: GantryEnv(23006, render_mode="human")])
+    env = DummyVecEnv([lambda: GantryEnv(render_mode="human")])
+if args.env == "Gantry-v1_cnn":
+    from Gantry.envs.GantryEnv_v1_cnn import GantryEnv
+    env = VecFrameStack(DummyVecEnv([lambda: GantryEnv(render_mode="human")]), n_stack=4)
 if args.norm:
     env = VecNormalize.load(args.norm, env)
 else:

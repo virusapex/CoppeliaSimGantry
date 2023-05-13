@@ -39,12 +39,12 @@ class GantryEnv(gym.Env):
     | 8   | similarity value                               | -Inf | Inf | unitless              |
     """
 
-    metadata = {'render.modes': ['human', 'rgb_array'],
-                'render_fps':   50}
-
     def __init__(self, render_mode=None):
         super(GantryEnv, self).__init__()
         self.q_last = [0, 470]
+        self.dt = 0.0333  # time step in simulation seconds
+        self.metadata["render_modes"] = ['human', 'rgb_array'],
+        self.metadata["render_fps"] = int(np.round(1.0 / self.dt))
 
         # Pixel limits for wanted target
         self.x_max = 480
@@ -117,7 +117,6 @@ class GantryEnv(gym.Env):
         self.gantry_sim_model.initializeSimModel(self.sim)
 
     def step(self, action):
-        dt = 0.0333  # time step in simulation seconds
         marker = 1
 
         # Position of Gantry robot (X- and Y-axis)
@@ -244,7 +243,7 @@ class GantryEnv(gym.Env):
 
         return np.array(self.state, dtype=np.float32), {}
 
-    def render(self, mode):
+    def render(self):
         if self.render_mode is None:
             assert self.spec is not None
             gym.logger.warn(
