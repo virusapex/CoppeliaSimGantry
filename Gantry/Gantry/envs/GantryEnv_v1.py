@@ -307,6 +307,7 @@ class GantryEnv(gym.Env):
     def close(self):
         self.sim.stopSimulation()
         self.sim.setInt32Param(self.sim.intparam_idle_fps, self.defaultIdleFps)
+        del self.client # should close the connection to the simulation
         cv2.destroyAllWindows()
         return None
 
