@@ -18,3 +18,9 @@ register(
     entry_point='Gantry.envs.GantryEnv_v1_cnn:GantryEnv',
     max_episode_steps=100,
 )
+
+register(
+    id='Gantry-v3',
+    entry_point='Gantry.envs.GantryEnv_v3:GantryEnv',
+    max_episode_steps=100,
+)

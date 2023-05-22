@@ -54,9 +54,9 @@ class GantryEnv(gym.Env):
 
         # Don't forget to normalize when training
         self.action_space = spaces.Box(low=-1, high=1,
-                                       shape=(2,), dtype=np.float32)
+                                       shape=(2,), dtype=np.float64)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(9,), dtype=np.float32)
+                                            shape=(9,), dtype=np.float64)
 
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(9,))
         self.state[:4] = self.np_random.integers(low=0, high=5, size=(4,))
@@ -125,6 +125,8 @@ class GantryEnv(gym.Env):
         # TODO Probably remove since gSDE is present
         # q += np.random.randint(-3,3,2)  # simulating camera noise
 
+        # TODO Be aware that in this condition new detections are not
+        # getting into the history buffer
         if q[0] == 0.0:
             marker = 0
             q = self.q_last  # marker was not found
@@ -150,6 +152,7 @@ class GantryEnv(gym.Env):
             np.array(self.q_last) - np.array(q))
         vector_xy = np.array(self.wanted_pixel) - np.array(q)
         vector_last_xy = np.array(q) - np.array(self.q_last)
+
         cosine_sim = np.dot(vector_xy, vector_last_xy)/np.dot(distance, distance_last)
         if np.isnan(cosine_sim):
             cosine_sim = 0
@@ -278,8 +281,8 @@ class GantryEnv(gym.Env):
 
         # If the marker with ID 23 is detected, estimate its pose
         if ids is not None:
-            if 23 in ids:
-                index = np.where(ids == 23)[0][0]
+            if 42 in ids:
+                index = np.where(ids == 42)[0][0]
                 marker_corners = corners[index][0]
                 center = np.mean(marker_corners, axis=0).astype(int)
 
@@ -307,7 +310,6 @@ class GantryEnv(gym.Env):
     def close(self):
         self.sim.stopSimulation()
         self.sim.setInt32Param(self.sim.intparam_idle_fps, self.defaultIdleFps)
-        del self.client # should close the connection to the simulation
         cv2.destroyAllWindows()
         return None
 
@@ -319,6 +321,6 @@ if __name__ == "__main__":
     for _ in range(500):
         action = env.action_space.sample()  # random action
         env.step(action)
-        env.render("human")
+        #env.render()
 
     env.close()
