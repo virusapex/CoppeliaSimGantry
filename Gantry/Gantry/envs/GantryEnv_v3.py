@@ -125,7 +125,11 @@ class GantryEnv(gym.Env):
         tags = self.gantry_sim_model.getGantryPixelPosition(
                 self.sim, self.visionSensorHandle, self.dist_coeffs)
         self.position_history.append(tags)  # add them to a delay buffer
+<<<<<<< HEAD
         
+=======
+        start = time.time()
+>>>>>>> e99889820661bdf51394b257805b3f92f80d3da1
         aruco = [42, 43, 44]  # IDs of ArUco
         # TODO Change this into states of dictionary
         aruco_states = [False, False, False]
