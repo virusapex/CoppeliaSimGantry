@@ -239,12 +239,12 @@ class GantryEnv(gym.Env):
         action /= 2  # from [-1,1] to [-0.5,0.5]
         self.gantry_sim_model.setGantryVelocity(self.sim, action)
 
-        self.state = (tags[aruco[0]][0], tags[aruco[0]][1],
-                      tags[aruco[1]][0], tags[aruco[1]][1],
-                      tags[aruco[2]][0], tags[aruco[2]][1],
-                      self.target_position[0], self.target_position[1],
-                      self.v[0], self.v[1],
-                      vector_xy[0], vector_xy[1], self.cosine_sim)
+        self.state = np.concatenate(tags[aruco[0]][0], tags[aruco[0]][1],
+                                    tags[aruco[1]][0], tags[aruco[1]][1],
+                                    tags[aruco[2]][0], tags[aruco[2]][1],
+                                    self.target_position[0], self.target_position[1],
+                                    self.v[0], self.v[1],
+                                    vector_xy[0], vector_xy[1], self.cosine_sim)
 
         self.counts += 1
         self.distance = distance
