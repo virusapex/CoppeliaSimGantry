@@ -3,13 +3,15 @@ import numpy as np
 
 
 # Load the Aruco dictionary
-aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_6X6_250)
+aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
 
 # Initialize the detector parameters
 aruco_params = cv2.aruco.DetectorParameters_create()
 
 # Initialize the webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 while True:
     # Capture a frame from the webcam
@@ -24,8 +26,8 @@ while True:
 
     # If the marker with ID 23 is detected, estimate its pose
     if ids is not None:
-        if 23 in ids:
-            index = np.where(ids == 23)[0][0]
+        if 42 in ids:
+            index = np.where(ids == 42)[0][0]
             marker_corners = corners[index][0]
             center = np.mean(marker_corners, axis=0).astype(int)
 
