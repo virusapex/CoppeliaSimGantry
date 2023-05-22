@@ -353,6 +353,7 @@ class GantryEnv(gym.Env):
             time.sleep(0.1)  # ensure the Coppeliasim is stopped
 
         self.sim.setInt32Param(self.sim.intparam_idle_fps, self.defaultIdleFps)
+        del self.client
         cv2.destroyAllWindows()
         return None
 
