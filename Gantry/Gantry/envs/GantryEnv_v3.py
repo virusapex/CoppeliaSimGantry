@@ -4,6 +4,8 @@ import gymnasium as gym
 import cv2
 import psutil
 import sys
+import json
+import os
 from gymnasium import spaces, logger
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 from Gantry.envs.GantrySimModel_v3 import GantrySimModel
@@ -67,29 +69,39 @@ class GantryEnv(gym.Env):
         self.steps_beyond_done = None
 
         # Define the port range and status
-        port_range = [port for port in range(23000, 23021, 2)]
-        status = 'ESTABLISHED'
-        ip_address = '127.0.0.1'
+        # TODO Add Established ports to the list for hyperparameter tuning
+        if not os.path.exists("ports.json"):
+            with open("ports.json", "w") as f:
+                port_range = [port for port in range(23000, 23021, 2)]
+                json.dump(port_range, f, indent=2)
 
-        # Loop through each process and check if it matches the criteria
-        for conn in psutil.net_connections():
-            try:
-                if conn.status == status and conn.raddr.port in port_range and conn.raddr.ip == ip_address:
-                    print(f"A process is using port {conn.raddr.port} with status '{conn.status}'")
-                    port_range.remove(conn.raddr.port)
+        with open("ports.json", 'r+') as f:
+            file = json.load(f)
+            self.port = file.pop(0)
+            f.seek(0)
+            json.dump(file, f, indent=2)
+            f.truncate()
+        # status = 'ESTABLISHED'
+        # ip_address = '127.0.0.1'
+        # # Loop through each process and check if it matches the criteria
+        # for conn in psutil.net_connections():
+        #     try:
+        #         if conn.status == status and conn.raddr.port in port_range and conn.raddr.ip == ip_address:
+        #             print(f"A process is using port {conn.raddr.port} with status '{conn.status}'")
+        #             port_range.remove(conn.raddr.port)
 
-            except (psutil.AccessDenied, psutil.ZombieProcess):
-                pass
-        try:
-            port = port_range[0]
-        except IndexError:
-            print("No available ports! Exiting...")
-            sys.exit()
+        #     except (psutil.AccessDenied, psutil.ZombieProcess):
+        #         pass
+        # try:
+        #     port = port_range[0]
+        # except IndexError:
+        #     print("No available ports! Exiting...")
+        #     sys.exit()
 
         # Connect to CoppeliaSim
-        self.client = RemoteAPIClient(port=port)
+        self.client = RemoteAPIClient(port=self.port)
         self.sim = self.client.getObject('sim')
-        print(f'Connected to remote API server {port}.')
+        print(f'Connected to remote API server {self.port}.')
         # When simulation is not running, ZMQ message handling could be a bit
         # slow, since the idle loop runs at 8 Hz by default. So let's make
         # sure that the idle loop runs at full speed for this program:
@@ -239,12 +251,12 @@ class GantryEnv(gym.Env):
         action /= 2  # from [-1,1] to [-0.5,0.5]
         self.gantry_sim_model.setGantryVelocity(self.sim, action)
 
-        self.state = np.concatenate((tags[aruco[0]][0], tags[aruco[0]][1],
-                                    tags[aruco[1]][0], tags[aruco[1]][1],
-                                    tags[aruco[2]][0], tags[aruco[2]][1],
-                                    self.target_position[0], self.target_position[1],
-                                    self.v[0], self.v[1],
-                                    vector_xy[0], vector_xy[1], self.cosine_sim))
+        self.state = np.array((tags[aruco[0]][0], tags[aruco[0]][1],
+                               tags[aruco[1]][0], tags[aruco[1]][1],
+                               tags[aruco[2]][0], tags[aruco[2]][1],
+                               self.target_position[0], self.target_position[1],
+                               self.v[0], self.v[1],
+                               vector_xy[0], vector_xy[1], self.cosine_sim))
 
         self.counts += 1
         self.distance = distance
@@ -353,7 +365,12 @@ class GantryEnv(gym.Env):
             time.sleep(0.1)  # ensure the Coppeliasim is stopped
 
         self.sim.setInt32Param(self.sim.intparam_idle_fps, self.defaultIdleFps)
-        del self.client
+        with open("ports.json", 'r+') as f:
+            file = json.load(f)
+            file.insert(0,self.port)
+            f.seek(0)
+            json.dump(file, f, indent=2)
+            f.truncate()
         cv2.destroyAllWindows()
         return None
 
